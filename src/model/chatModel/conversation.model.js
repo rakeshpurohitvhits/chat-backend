@@ -19,9 +19,9 @@ const conversationSchema = new mongoose.Schema({
     },
     senderId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'user'
+        ref: 'User'
     }
 
 }, { timestamps: true });
 
-export const conversationModel =new mongoose.model('Conversation', conversationSchema);
+export const conversationModel = mongoose.models.Conversation || mongoose.model('Conversation', conversationSchema);
