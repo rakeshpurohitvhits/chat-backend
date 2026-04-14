@@ -7,17 +7,31 @@ import { SendPushNotification } from "../../services/services.js";
 
 export const createConversation = async (req, res) => {
     try {
-        const findData = await conversationModel.findOne({ user: { $all: req.body.user } });
+        let findData = await conversationModel.findOne({ user: { $all: req.body.user } });
         if (!findData) {
-            await conversationModel.create(req.body)
+            findData = await conversationModel.create({
+                ...req.body,
+                requestSend: true,
+                isPending: true
+            })
             return res.status(StatusCodes.OK).json({
                 status: StatusCodes.OK,
                 message: ResponseMessage.ROOM_JOIN_SUCCESSFULLY,
+                data: findData
             });
+        } else {
+            // If it exists but requestSend was false, we might want to update it
+            if (!findData.requestSend) {
+                findData.requestSend = true;
+                findData.isPending = true;
+                findData.senderId = req.body.senderId;
+                await findData.save();
+            }
         }
         return res.status(StatusCodes.OK).json({
             status: StatusCodes.OK,
             message: ResponseMessage.ROOM_ALREADY_JOINED,
+            data: findData
         });
 
     } catch (error) {
@@ -170,35 +184,79 @@ export const getChat = async (req, res) => {
 
 
 
-// event functions
-export const sendRequest = async (data) => {
-    console.log(data,'sendRequest');
+export const acceptRequest = async (req, res) => {
     try {
-        const findconversation = await conversationModel.findOne({ _id: data.id })
-        if (findconversation) {
-            findconversation.requestSend = true
-            findconversation.isPending = true
-            const data = await findconversation.save()
-            return data
+        const findData = await conversationModel.findOne({ _id: req.body.id });
+        if (findData) {
+            findData.requestAccept = true;
+            findData.isPending = false;
+            await findData.save();
+            const populatedData = await conversationModel.findById(findData._id).populate("user", "fullName userName profileImage");
+            return res.status(StatusCodes.OK).json({
+                status: StatusCodes.OK,
+                message: ResponseMessage.ROOM_JOIN_SUCCESSFULLY,
+                data: populatedData
+            });
         }
+        return res.status(StatusCodes.OK).json({
+            status: StatusCodes.OK,
+            message: ResponseMessage.CONVERSATION_ROOM_NOT_FOUND,
+        });
+
     } catch (error) {
-        console.log("send request error", error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR)
+            .json({ data: error, status: StatusCodes.INTERNAL_SERVER_ERROR, message: ResponseMessage.INTERNAL_SERVER })
     }
 }
 
 
-
-export const acceptRequestFun = async (data) => {
+// event functions
+export const sendRequest = async (data) => {
+    console.log("sendRequest data received:", data);
     try {
-        const findconversation = await conversationModel.findOne({ _id: data.id })
+        const conversationId = data.id || data._id;
+        if (!conversationId) {
+            console.error("sendRequest: Missing conversation ID");
+            return null;
+        }
+        const findconversation = await conversationModel.findOne({ _id: conversationId });
         if (findconversation) {
-            findconversation.requestAccept = true
-            findconversation.isPending = false
-            const data = await findconversation.save()
-            return data
+            findconversation.requestSend = true;
+            findconversation.isPending = true;
+            const savedConversation = await findconversation.save();
+            // Populate user details for the receiver to see who sent the request
+            return await conversationModel.findById(savedConversation._id).populate("user", "fullName userName profileImage");
+        } else {
+            console.warn("sendRequest: Conversation not found for ID:", conversationId);
+            return null;
         }
     } catch (error) {
-        console.log("send request error", error);
+        console.error("send request error:", error);
+        return null;
+    }
+}
+
+export const acceptRequestFun = async (data) => {
+    console.log("acceptRequest data received:", data);
+    try {
+        const conversationId = data.id || data._id;
+        if (!conversationId) {
+            console.error("acceptRequest: Missing conversation ID");
+            return null;
+        }
+        const findconversation = await conversationModel.findOne({ _id: conversationId });
+        if (findconversation) {
+            findconversation.requestAccept = true;
+            findconversation.isPending = false;
+            const savedConversation = await findconversation.save();
+            return await conversationModel.findById(savedConversation._id).populate("user", "fullName userName profileImage");
+        } else {
+            console.warn("acceptRequest: Conversation not found for ID:", conversationId);
+            return null;
+        }
+    } catch (error) {
+        console.error("accept request error:", error);
+        return null;
     }
 }
 
