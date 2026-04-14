@@ -15,9 +15,4 @@ export const connectToDataBase = async () => {
     }
 }
 
-mongoose.connect(process.env.MONGO_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  tls: true,
-  tlsAllowInvalidCertificates: true
-});
+mongoose.connect(process.env.MONGO_URL);
