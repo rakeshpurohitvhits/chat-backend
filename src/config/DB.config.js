@@ -14,3 +14,10 @@ export const connectToDataBase = async () => {
         throw error; // Re-throw to stop server initialization
     }
 }
+
+mongoose.connect(process.env.MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  tls: true,
+  tlsAllowInvalidCertificates: true
+});
