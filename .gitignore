@@ -13,7 +13,7 @@
 
 # misc
 .DS_Store
-.env
+# .env
 .env.local
 /public/uploads/*
 !/public/uploads/.gitkeep
